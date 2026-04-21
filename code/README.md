@@ -1,155 +1,170 @@
-# Project 4 — DQN on Maze (EECE 5614, Spring 2026)
+# EECE 5614 — Project 4: DQN Variants on Stochastic Maze
 
-## Overview
+> **Course:** EECE 5614 Reinforcement Learning and Decision Making Under Uncertainty, Northeastern University, Spring 2026
+> **Author:** Shoukang Yu
 
-Use Deep Q-Network (DQN) and its variants to train an agent to navigate an 8×8 stochastic maze from a random start state to the goal (green cell).
+---
+
+## What This Project Does
+
+This project trains a reinforcement learning agent to navigate an **8×8 stochastic maze** from a random start position to a fixed goal using three Deep Q-Network variants:
+
+| Algorithm | Key Idea |
+|-----------|----------|
+| **Standard DQN** | Target network evaluates both action selection and Q-value |
+| **Double DQN** | Online network selects action; target network evaluates it — reduces overestimation bias |
+| **Dueling DQN** | Splits Q-value into state value V(s) and advantage A(s,a) — faster convergence |
+
+---
 
 ## Maze Layout
 
 ```
 x:  0    1    2    3    4    5    6    7
-y=0:[   ][Yel][   ][   ][   ][Grn][   ][   ]   ← Goal at (5,0)
+y=0:[   ][Yel][   ][   ][   ][Grn][   ][   ]   ← Goal (5,0)  +100
 y=1:[   ][   ][   ][###][   ][   ][   ][   ]
 y=2:[   ][Red][###][###][###][###][Yel][###]
 y=3:[   ][   ][   ][###][   ][   ][   ][   ]
 y=4:[   ][Yel][   ][   ][   ][###][Yel][   ]
-y=5:[###][###][Red][   ][###][###][   ][   ]
-y=6:[   ][Blu][Red][   ][   ][###][Red][   ]   ← Start at (1,6)
+y=5:[###][###][###][Red][   ][###][   ][   ]
+y=6:[   ][Blu][Red][   ][   ][###][Red][   ]   ← Start (1,6)
 y=7:[   ][   ][   ][   ][   ][###][   ][   ]
 ```
 
-`###`=wall, `Grn`=goal(+100), `Blu`=start, `Yel`=yellow(-5), `Red`=red(-10)
+`###`=wall · `Grn`=goal · `Blu`=start · `Yel`=−5 penalty · `Red`=−10 penalty
 
-**State representation:** `s = [x/7, y/7]` — normalized to `[0,1]²`
-
-## Reward Structure
+**Reward structure:**
 
 | Event | Reward |
 |-------|--------|
-| Every action taken | −1 |
-| Hit a wall (stay in place) | −0.8 |
-| Land on yellow cell | −5 |
-| Land on red cell | −10 |
-| Reach goal | +100 |
+| Every step | −1 |
+| Hit wall (stay) | −1.8 total |
+| Land on yellow cell | −6 total |
+| Land on red cell | −11 total |
+| Reach goal | +99 total |
 
-Rewards are **additive** (e.g., landing on red = −1 − 10 = −11 total).
-
-## Transition Probability
-
-With `P = 0.025`:
-- Probability `1−P = 0.975`: move in intended direction
-- Probability `P/2 = 0.0125`: slide to each perpendicular direction
-
-If the resulting cell is a wall, the agent stays in place (and gets −0.8).
+**Transition noise:** `P = 0.025` — with probability 0.975 the agent moves as intended; with probability 0.0125 each it slips to either perpendicular direction.
 
 ---
 
-## File Structure
+## Results
 
-```
-project4/
-├── maze.py       # Maze environment: step(), reset(), state_to_array()
-├── dqn.py        # Neural network architectures: DQN, DuelingDQN
-├── agent.py      # ReplayBuffer + DQNAgent (standard / double / dueling)
-├── train.py      # Training loop, epsilon schedule, moving average
-├── visualize.py  # All plotting functions (policy, values, path, curves)
-└── main.py       # Runs all experiments, saves all figures
-```
+### Standard DQN — Training Curves
+![STD Training Curves](result/std_curves.png)
 
----
+### Standard DQN — Learned Policy
+![STD Policy](result/std_policy.png)
 
-## Algorithms
+### Standard DQN — State Values
+![STD State Values](result/std_values.png)
 
-### Standard DQN
-Target:
-```
-z_i = r_i + γ · max_a Q^{w-}(s'_i, a) · (1 − done_i)
-```
-
-### Double DQN (Q7)
-Decouples action selection and evaluation to reduce overestimation:
-```
-z_i = r_i + γ · Q^{w-}(s'_i, argmax_{a'} Q^w(s'_i, a')) · (1 − done_i)
-```
-
-### Dueling DQN (Q8)
-Network outputs Value stream V(s) and Advantage stream A(s,a), combined as:
-```
-Q(s,a) = V(s) + A(s,a) − mean_{a'} A(s,a')
-```
+### Standard DQN — Path from Start to Goal
+![STD Path](result/std_path.png)
 
 ---
 
-## Hyperparameters
+### Q7: Effect of Learning Rate
+![Learning Rate Comparison](result/q7_lr_comparison.png)
 
-| Parameter | Symbol | Value | Range (assignment) |
-|-----------|--------|-------|--------------------|
-| Episodes | N_epi | 3000 | — |
-| Max steps/episode | T_epi | 50 | ~50 |
-| Replay buffer size | \|D\| | 10000 | ~10^4 |
-| Minibatch size | N_batch | 64 | 64 |
-| Discount factor | γ | 0.98 | 0.95 < γ < 0.995 |
-| Learning rate | α | 5e-4 | 10^−4 < α < 10^−1 |
-| Q-net update interval | N_QU | 4 | — |
-| Soft update rate | η | 1e-3 | 10^−4 < η < 10^−1 |
-| Epsilon decay | decay | 0.999 | close to 1 |
-
-**Epsilon schedule:** `ε = max(0.1, 0.999^episode)`
+The baseline α = 5×10⁻⁴ gives the best balance of convergence speed and stability. A 10× larger rate converges faster initially but becomes unstable after episode 2000; a 10× smaller rate has not converged after 3000 episodes.
 
 ---
 
-## Network Architecture
+### Double DQN — Training Curves
+![Double Training Curves](result/double_curves.png)
+
+### Double DQN — Learned Policy
+![Double Policy](result/double_policy.png)
+
+### Double DQN — State Values
+![Double State Values](result/double_values.png)
+
+### Double DQN — Path from Start to Goal
+![Double Path](result/double_path.png)
+
+---
+
+### Dueling DQN — Training Curves
+![Dueling Training Curves](result/dueling_curves.png)
+
+### Dueling DQN — Learned Policy
+![Dueling Policy](result/dueling_policy.png)
+
+### Dueling DQN — State Values
+![Dueling State Values](result/dueling_values.png)
+
+### Dueling DQN — Path from Start to Goal
+![Dueling Path](result/dueling_path.png)
+
+---
+
+### Three-Way Comparison
+
+| | Avg Reward |
+|-|------------|
+| ![Reward Comparison](result/comparison_reward.png) | |
+
+![Length Comparison](result/comparison_length.png)
+
+**Key findings:**
+- All three methods successfully solve the maze and converge to similar final performance (~85–90 avg reward)
+- **Dueling DQN** converges fastest (reaches 50 avg reward by episode ~400)
+- **Double DQN** produces the most accurate (least overestimated) Q-values
+- **Standard DQN** is the simplest baseline
+
+---
+
+## Network Architectures
 
 ### DQN / Double DQN
 ```
 Input(2) → Linear(128) → ReLU
          → Linear(128) → ReLU
          → Linear(128) → ReLU
-         → Linear(4)              ← Q-values for 4 actions
+         → Linear(4)        ← Q-values for UP / RIGHT / DOWN / LEFT
 ```
 
 ### Dueling DQN
 ```
-Input(2) → Linear(128) → ReLU → Linear(128) → ReLU   [shared feature]
-                ├── Linear(128) → ReLU → Linear(1)    [Value stream V(s)]
-                └── Linear(128) → ReLU → Linear(4)    [Advantage stream A(s,a)]
-                Combined: Q = V + A − mean(A)
+Input(2) → Linear(128) → ReLU → Linear(128) → ReLU    [shared feature trunk]
+                ├── Linear(128) → ReLU → Linear(1)     [Value stream  V(s)]
+                └── Linear(128) → ReLU → Linear(4)     [Advantage stream A(s,a)]
+                Q(s,a) = V(s) + A(s,a) − mean_a'[A(s,a')]
 ```
 
 ---
+
+## Hyperparameters
+
+| Parameter | Value |
+|-----------|-------|
+| Episodes | 3000 |
+| Max steps / episode | 50 |
+| Replay buffer | 10,000 |
+| Minibatch size | 64 |
+| Discount γ | 0.98 |
+| Learning rate α | 5×10⁻⁴ |
+| Q-net update interval | every 4 steps |
+| Soft update rate η | 1×10⁻³ |
+| ε schedule | max(0.1, 0.999^episode) |
+
+---
+
+## File Structure
+
+```
+├── maze.py        # Maze environment: step(), reset(), reward, walls
+├── dqn.py         # Neural networks: DQN, DuelingDQN
+├── agent.py       # ReplayBuffer + DQNAgent (standard / double / dueling)
+├── train.py       # Training loop + epsilon schedule
+├── visualize.py   # Plotting: policy arrows, value heatmap, path, curves
+├── main.py        # Runs all experiments, saves all figures
+└── result/        # All output figures (15 PNG files)
+```
 
 ## How to Run
 
-### Install dependencies
 ```bash
 pip install torch numpy matplotlib
-```
-
-### Run all experiments
-```bash
 python main.py
 ```
-
-This trains Standard DQN, Double DQN, and Dueling DQN sequentially and saves all figures.
-
----
-
-## Output Files
-
-| File | Content | Question |
-|------|---------|---------|
-| `std_curves.png` | Avg Reward, Avg Loss, Avg Length | Q2, Q6 |
-| `std_policy.png` | Arrow policy on maze | Q3 |
-| `std_values.png` | State value heatmap | Q4 |
-| `std_path.png` | Path from start to goal | Q5 |
-| `q7_lr_comparison.png` | 3 learning rates compared | Q7 |
-| `double_curves.png` | Double DQN training curves | Q8-2, Q8-6 |
-| `double_policy.png` | Double DQN policy | Q8-3 |
-| `double_values.png` | Double DQN state values | Q8-4 |
-| `double_path.png` | Double DQN path | Q8-5 |
-| `dueling_curves.png` | Dueling DQN training curves | Q9-2, Q9-6 |
-| `dueling_policy.png` | Dueling DQN policy | Q9-3 |
-| `dueling_values.png` | Dueling DQN state values | Q9-4 |
-| `dueling_path.png` | Dueling DQN path | Q9-5 |
-| `comparison_reward.png` | All 3 methods: Avg Reward | Q8, Q9 |
-| `comparison_length.png` | All 3 methods: Avg Length | Q8, Q9 |
