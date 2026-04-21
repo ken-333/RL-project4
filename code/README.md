@@ -19,19 +19,9 @@ This project trains a reinforcement learning agent to navigate an **8×8 stochas
 
 ## Maze Layout
 
-```
-x:  0    1    2    3    4    5    6    7
-y=0:[   ][Yel][   ][   ][   ][Grn][   ][   ]   ← Goal (5,0)  +100
-y=1:[   ][   ][   ][###][   ][   ][   ][   ]
-y=2:[   ][Red][###][###][###][###][Yel][###]
-y=3:[   ][   ][   ][###][   ][   ][   ][   ]
-y=4:[   ][Yel][   ][   ][   ][###][Yel][   ]
-y=5:[###][###][###][Red][   ][###][   ][   ]
-y=6:[   ][Blu][Red][   ][   ][###][Red][   ]   ← Start (1,6)
-y=7:[   ][   ][   ][   ][   ][###][   ][   ]
-```
+![Maze Layout](result/std_policy.png)
 
-`###`=wall · `Grn`=goal · `Blu`=start · `Yel`=−5 penalty · `Red`=−10 penalty
+Green = goal (+100) · Blue = start · Yellow = −5 penalty · Red = −10 penalty · Black = wall
 
 **Reward structure:**
 
